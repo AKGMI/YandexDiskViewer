@@ -6,6 +6,31 @@
     <title>Yandex Disk Viewer</title>
 </head>
 <body>
-    <h1>Welcome to Yandex Disk Viewer</h1>
+<h1>Yandex Disk Viewer</h1>
+<form method="get">
+    <input type="text" name="public_key" placeholder="Enter public key" value="{{ public_key }}">
+    <button type="submit">View Files</button>
+</form>
+
+{% if error_message %}
+<p style="color: red;">{{ error_message }}</p>
+{% elif files %}
+{% if files|length == 0 %}
+<p>Эта директория пуста.</p>
+{% else %}
+<ul>
+    {% for file in files %}
+    <li>
+        {{ file.path }} ({{ file.type }})
+        {% if file.type == 'file' %}
+        <a href="{{ file.file }}?path={{ file.path }}" download>Download</a>
+        {% endif %}
+    </li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% else %}
+<p>Введите публичный ключ для просмотра файлов.</p>
+{% endif %}
 </body>
 </html>
