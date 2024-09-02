@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, HttpRequest
 from django.core.cache import cache
 from django.contrib import messages
 from .yandex_disk_service import YandexDiskService
@@ -7,18 +7,25 @@ from urllib.parse import urlparse, parse_qs, unquote
 import os
 import zipfile
 import asyncio
-import mimetypes
 import hashlib
+from typing import List, Optional, Dict
 
-def index(request):
-    files = []
-    error_message = None
-    public_key = request.GET.get('public_key')
-    file_type_filter = request.GET.get('file_type')
-    path = request.GET.get('path', '/')
+
+def index(request: HttpRequest) -> HttpResponse:
+    """
+    Представление для отображения списка файлов и директорий с Яндекс.Диска.
+
+    :param request: Объект запроса Django, содержащий параметры запроса.
+    :return: HttpResponse с рендерингом страницы, отображающей файлы и директории.
+    """
+    files: List[Dict] = []
+    error_message: Optional[str] = None
+    public_key: Optional[str] = request.GET.get('public_key')
+    file_type_filter: Optional[str] = request.GET.get('file_type')
+    path: str = request.GET.get('path', '/')
 
     if public_key:
-        cache_key = f"files_{hashlib.md5((public_key + path).encode()).hexdigest()}"
+        cache_key: str = f"files_{hashlib.md5((public_key + path).encode()).hexdigest()}"
         files = cache.get(cache_key)
 
         if not files:
@@ -40,15 +47,21 @@ def index(request):
 
     return render(request, 'disk/index.html', context)
 
-def download(request):
-    file_url = unquote(request.GET.get('file_url'))
+def download(request: HttpRequest) -> HttpResponse:
+    """
+    Представление для загрузки отдельного файла с Яндекс.Диска.
+
+    :param request: Объект запроса Django, содержащий параметры запроса, включая URL файла.
+    :return: HttpResponse с файлом для скачивания или перенаправление в случае ошибки.
+    """
+    file_url: str = unquote(request.GET.get('file_url', ''))
 
     parsed_url = urlparse(file_url)
     query_params = parse_qs(parsed_url.query)
-    file_name = query_params.get('filename')[0]
+    file_name: str = query_params.get('filename', [''])[0]
 
-    download_dir = 'downloads'
-    save_path = os.path.join(download_dir, file_name)
+    download_dir: str = 'downloads'
+    save_path: str = os.path.join(download_dir, file_name)
 
     service = YandexDiskService('')
 
@@ -65,13 +78,17 @@ def download(request):
         messages.error(request, f'Ошибка при загрузке файла: {str(e)}')
         return HttpResponseRedirect('/')
 
-    return HttpResponseRedirect('/')
+def download_selected(request: HttpRequest) -> HttpResponse:
+    """
+    Представление для скачивания выбранных файлов в виде ZIP-архива.
 
-def download_selected(request):
+    :param request: Объект запроса Django, содержащий список выбранных файлов.
+    :return: HttpResponse с ZIP-архивом для скачивания или перенаправление в случае ошибки.
+    """
     if request.method == 'POST':
-        selected_files = request.POST.getlist('selected_files')
-        zip_filename = "selected_files.zip"
-        download_dir = 'downloads'
+        selected_files: List[str] = request.POST.getlist('selected_files')
+        zip_filename: str = "selected_files.zip"
+        download_dir: str = 'downloads'
 
         if not os.path.exists(download_dir):
             os.makedirs(download_dir)
@@ -81,10 +98,10 @@ def download_selected(request):
                 for file_url in selected_files:
                     parsed_url = urlparse(file_url)
                     query_params = parse_qs(parsed_url.query)
-                    file_name = query_params.get('filename')[0]
+                    file_name: str = query_params.get('filename')[0]
 
                     service = YandexDiskService('')
-                    saved_file_path = asyncio.run(service.download_file(file_url, f'{download_dir}/{file_name}'))
+                    saved_file_path: Optional[str] = asyncio.run(service.download_file(file_url, f'{download_dir}/{file_name}'))
                     if saved_file_path:
                         zipf.write(saved_file_path, os.path.basename(saved_file_path))
 
@@ -100,9 +117,14 @@ def download_selected(request):
 
     return HttpResponseRedirect('/')
 
-def cleanup_downloads(directory):
+def cleanup_downloads(directory: str) -> None:
+    """
+    Удаляет все файлы и директории в указанной директории.
+
+    :param directory: Путь к директории, которую нужно очистить.
+    """
     for filename in os.listdir(directory):
-        file_path = os.path.join(directory, filename)
+        file_path: str = os.path.join(directory, filename)
         try:
             if os.path.isfile(file_path) or os.path.islink(file_path):
                 os.unlink(file_path)
