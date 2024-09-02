@@ -15,14 +15,15 @@ def index(request):
     error_message = None
     public_key = request.GET.get('public_key')
     file_type_filter = request.GET.get('file_type')
+    path = request.GET.get('path', '/')
 
     if public_key:
-        cache_key = f"files_{hashlib.md5(public_key.encode()).hexdigest()}"
+        cache_key = f"files_{hashlib.md5((public_key + path).encode()).hexdigest()}"
         files = cache.get(cache_key)
 
         if not files:
             service = YandexDiskService(public_key)
-            files, error_message = asyncio.run(service.get_files_list())
+            files, error_message = asyncio.run(service.get_files_list(path))
 
             if files:
                 cache.set(cache_key, files, timeout=600)

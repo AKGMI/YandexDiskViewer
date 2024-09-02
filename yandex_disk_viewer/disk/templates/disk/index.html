@@ -28,6 +28,10 @@
     <button type="submit">View Files</button>
 </form>
 
+{% if current_path != '/' %}
+    <p><a href="?public_key={{ public_key }}&path={{ parent_path }}">⬅ Назад</a></p>
+{% endif %}
+
 {% if error_message %}
     <p style="color: red;">{{ error_message }}</p>
 {% elif not public_key %}
@@ -40,13 +44,17 @@
         {% csrf_token %}
         <ul>
         {% for file in files %}
+            {% if file.type == 'dir' %}
             <li>
-                <input type="checkbox" name="selected_files" value="{{ file.file }}">
-                {{ file.name }} ({{ file.type }})
-                {% if file.type == 'file' %}
-                <a href="{% url 'download' %}?file_url={{ file.file|urlencode }}" download>Скачать</a>
-                {% endif %}
+                <a href="?public_key={{ public_key }}&path={{ file.path|urlencode }}">{{ file.name }}/</a>
             </li>
+            {% else %}
+            <li>
+                <input type="checkbox" name="selected_files" value="{{ file.path }}">
+                {{ file.name }} ({{ file.mime_type }})
+                <a href="{% url 'download' %}?file_url={{ file.file|urlencode }}" download>Скачать</a>
+            </li>
+            {% endif %}
         {% endfor %}
         </ul>
         <button type="submit">Скачать выбранные</button>
