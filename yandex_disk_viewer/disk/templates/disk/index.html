@@ -7,30 +7,44 @@
 </head>
 <body>
 <h1>Yandex Disk Viewer</h1>
-<form method="get">
+<form method="get" id="files-form">
     <input type="text" name="public_key" placeholder="Enter public key" value="{{ public_key }}">
+    <select name="file_type">
+        <option value="">Все файлы</option>
+        <option value="image" {% if file_type_filter == "image" %}selected{% endif %}>Изображения</option>
+        <option value="application" {% if file_type_filter == "application" %}selected{% endif %}>Документы</option>
+        <option value="audio" {% if file_type_filter == "audio" %}selected{% endif %}>Аудио</option>
+        <option value="video" {% if file_type_filter == "video" %}selected{% endif %}>Видео</option>
+    </select>
     <button type="submit">View Files</button>
 </form>
 
 {% if error_message %}
-<p style="color: red;">{{ error_message }}</p>
+    <p style="color: red;">{{ error_message }}</p>
+{% elif not public_key %}
+    <p>Введите публичный ключ для просмотра файлов.</p>
 {% elif files %}
-{% if files|length == 0 %}
-<p>Эта директория пуста.</p>
+    {% if files|length == 0 %}
+        <p>Эта директория пуста.</p>
+    {% else %}
+    <form method="post" action="{% url 'download_selected' %}">
+        {% csrf_token %}
+        <ul>
+        {% for file in files %}
+            <li>
+                <input type="checkbox" name="selected_files" value="{{ file.file }}">
+                {{ file.name }} ({{ file.type }})
+                {% if file.type == 'file' %}
+                <a href="{% url 'download' %}?file_url={{ file.file|urlencode }}" download>Скачать</a>
+                {% endif %}
+            </li>
+        {% endfor %}
+        </ul>
+        <button type="submit">Скачать выбранные</button>
+    </form>
+    {% endif %}
 {% else %}
-<ul>
-    {% for file in files %}
-    <li>
-        {{ file.path }} ({{ file.type }})
-        {% if file.type == 'file' %}
-        <a href="{{ file.file }}?path={{ file.path }}" download>Download</a>
-        {% endif %}
-    </li>
-    {% endfor %}
-</ul>
-{% endif %}
-{% else %}
-<p>Введите публичный ключ для просмотра файлов.</p>
+    <p>{% if file_type_filter %}Не найдено файлов выбранного типа{% else %}Ничего не найдено{% endif %}.</p>
 {% endif %}
 </body>
 </html>
