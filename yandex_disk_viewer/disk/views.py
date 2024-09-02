@@ -1,11 +1,13 @@
 from django.shortcuts import render
 from django.http import HttpResponse, HttpResponseRedirect
+from django.core.cache import cache
 from .yandex_disk_service import YandexDiskService
 from urllib.parse import urlparse, parse_qs, unquote
 import os
 import zipfile
 import asyncio
 import mimetypes
+import hashlib
 
 def index(request):
     files = []
@@ -14,8 +16,15 @@ def index(request):
     file_type_filter = request.GET.get('file_type')
 
     if public_key:
-        service = YandexDiskService(public_key)
-        files, error_message = asyncio.run(service.get_files_list())
+        cache_key = f"files_{hashlib.md5(public_key.encode()).hexdigest()}"
+        files = cache.get(cache_key)
+
+        if not files:
+            service = YandexDiskService(public_key)
+            files, error_message = asyncio.run(service.get_files_list())
+
+            if files:
+                cache.set(cache_key, files, timeout=600)
 
         if files and file_type_filter:
             files = [file for file in files if file['mime_type'].startswith(file_type_filter)]
