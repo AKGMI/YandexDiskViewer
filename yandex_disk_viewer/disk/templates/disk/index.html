@@ -50,7 +50,7 @@
             </li>
             {% else %}
             <li>
-                <input type="checkbox" name="selected_files" value="{{ file.path }}">
+                <input type="checkbox" name="selected_files" value="{{ file.file }}">
                 {{ file.name }} ({{ file.mime_type }})
                 <a href="{% url 'download' %}?file_url={{ file.file|urlencode }}" download>Скачать</a>
             </li>
