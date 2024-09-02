@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse, HttpResponseRedirect
 from django.core.cache import cache
+from django.contrib import messages
 from .yandex_disk_service import YandexDiskService
 from urllib.parse import urlparse, parse_qs, unquote
 import os
@@ -49,13 +50,19 @@ def download(request):
     save_path = os.path.join(download_dir, file_name)
 
     service = YandexDiskService('')
-    asyncio.run(service.download_file(file_url, save_path))
 
-    with open(save_path, 'rb') as f:
-        response = HttpResponse(f.read(), content_type='application/octet-stream')
-        response['Content-Disposition'] = f'attachment; filename={file_name}'
-        cleanup_downloads(download_dir)
-        return response
+    try:
+        asyncio.run(service.download_file(file_url, save_path))
+
+        with open(save_path, 'rb') as f:
+            response = HttpResponse(f.read(), content_type='application/octet-stream')
+            response['Content-Disposition'] = f'attachment; filename={file_name}'
+            cleanup_downloads(download_dir)
+            return response
+
+    except Exception as e:
+        messages.error(request, f'Ошибка при загрузке файла: {str(e)}')
+        return HttpResponseRedirect('/')
 
     return HttpResponseRedirect('/')
 
@@ -68,18 +75,27 @@ def download_selected(request):
         if not os.path.exists(download_dir):
             os.makedirs(download_dir)
 
-        with zipfile.ZipFile(zip_filename, 'w') as zipf:
-            for file_url in selected_files:
-                service = YandexDiskService('')
-                saved_file_path = asyncio.run(service.download_file(file_url, download_dir))
-                if saved_file_path:
-                    zipf.write(saved_file_path, os.path.basename(saved_file_path))
+        try:
+            with zipfile.ZipFile(zip_filename, 'w') as zipf:
+                for file_url in selected_files:
+                    parsed_url = urlparse(file_url)
+                    query_params = parse_qs(parsed_url.query)
+                    file_name = query_params.get('filename')[0]
 
-        with open(zip_filename, 'rb') as f:
-            response = HttpResponse(f.read(), content_type='application/zip')
-            response['Content-Disposition'] = f'attachment; filename=' + zip_filename
-            cleanup_downloads(download_dir)
-            return response
+                    service = YandexDiskService('')
+                    saved_file_path = asyncio.run(service.download_file(file_url, f'{download_dir}/{file_name}'))
+                    if saved_file_path:
+                        zipf.write(saved_file_path, os.path.basename(saved_file_path))
+
+            with open(zip_filename, 'rb') as f:
+                response = HttpResponse(f.read(), content_type='application/zip')
+                response['Content-Disposition'] = f'attachment; filename=' + zip_filename
+                cleanup_downloads(download_dir)
+                return response
+
+        except Exception as e:
+            messages.error(request, f'Ошибка при создании ZIP-архива: {str(e)}')
+            return HttpResponseRedirect('/')
 
     return HttpResponseRedirect('/')
 

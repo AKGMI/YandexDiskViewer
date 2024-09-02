@@ -4,11 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yandex Disk Viewer</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 </head>
 <body>
 <h1>Yandex Disk Viewer</h1>
+{% if messages %}
+<ul class="messages">
+    {% for message in messages %}
+    <li class="{% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
 <form method="get" id="files-form">
-    <input type="text" name="public_key" placeholder="Enter public key" value="{{ public_key }}">
+    <input type="text" name="public_key" placeholder="Enter public key" value="{% if public_key %}{{ public_key }}{% endif %}">
     <select name="file_type">
         <option value="">Все файлы</option>
         <option value="image" {% if file_type_filter == "image" %}selected{% endif %}>Изображения</option>

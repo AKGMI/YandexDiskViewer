@@ -30,5 +30,5 @@ class YandexDiskService:
                 if response.status == 200:
                     with open(save_path, 'wb') as f:
                         f.write(await response.read())
-                    return True
-                return False
+                    return save_path
+                return None
